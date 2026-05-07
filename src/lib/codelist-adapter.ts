@@ -6,6 +6,8 @@ type CodeMap = Record<string, Record<string, string>>;
 type ElementNameMap = Record<string, string>;
 type SegmentMap = Record<string, string>;
 
+type VersionMap = Record<string, string[]>;
+
 // Lazy-loaded caches
 let x12CodeMap: CodeMap | null = null;
 let edifactCodeMap: CodeMap | null = null;
@@ -13,6 +15,8 @@ let x12ElementNames: ElementNameMap | null = null;
 let edifactElementNames: ElementNameMap | null = null;
 let x12SegmentMap: SegmentMap | null = null;
 let edifactSegmentMap: SegmentMap | null = null;
+let x12VersionMap: VersionMap | null = null;
+let edifactVersionMap: VersionMap | null = null;
 
 const DATA_DIR = path.join(process.cwd(), "src", "data");
 
@@ -97,6 +101,42 @@ function getSegmentMap(standard: Standard): SegmentMap {
   return standard === "X12" ? getX12SegmentMap() : getEdifactSegmentMap();
 }
 
+function buildVersionMap(data: Record<string, unknown>): VersionMap {
+  const map: VersionMap = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (key === "metadata") continue;
+    const v = value as Record<string, unknown>;
+    if (v && typeof v === "object" && "elements" in v) {
+      map[key] = Object.keys(v.elements as Record<string, string>);
+    }
+  }
+  return map;
+}
+
+function getX12VersionMap(): VersionMap {
+  if (!x12VersionMap) {
+    const data = loadJson("x12_descriptions.json") as Record<string, unknown>;
+    x12VersionMap = buildVersionMap(data);
+  }
+  return x12VersionMap;
+}
+
+function getEdifactVersionMap(): VersionMap {
+  if (!edifactVersionMap) {
+    const data = loadJson("edifact_descriptions.json") as Record<string, unknown>;
+    edifactVersionMap = buildVersionMap(data);
+  }
+  return edifactVersionMap;
+}
+
+function getVersionMap(standard: Standard): VersionMap {
+  return standard === "X12" ? getX12VersionMap() : getEdifactVersionMap();
+}
+
+export function getVersionKeys(standard: Standard): string[] {
+  return Object.keys(getVersionMap(standard));
+}
+
 /** Resolve a segment-position reference (e.g. "UNH0201", "N101") to an element ID */
 function resolveSegmentRef(ref: string, segmentMap: SegmentMap): string | null {
   // Try exact match first (case-insensitive key lookup)
@@ -134,9 +174,17 @@ export function lookupCodeList(q: CodeListQuery): CodeListResult[] {
     return name.toLowerCase().includes(filter.toLowerCase());
   };
 
+  // Restrict to version if specified
+  const versionFilter = q.version?.trim() || "";
+  const versionIds: Set<string> | null = versionFilter
+    ? new Set(getVersionMap(q.standard)[versionFilter] || [])
+    : null;
+
   // Get candidate element IDs (OR logic when both fields provided)
   let candidateIds: string[];
-  const allIds = Object.keys(codeMap);
+  const allIds = versionIds
+    ? Object.keys(codeMap).filter((id) => versionIds.has(id))
+    : Object.keys(codeMap);
 
   if (elementIdFilter && elementNameFilter) {
     // OR: include elements matching ID or resolved from segment name or description name

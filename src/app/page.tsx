@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { Standard, CodeListResult } from "@/lib/types";
+import { getVersionKeys } from "@/lib/codelist-adapter";
 
 export default function Home() {
   const [standard, setStandardState] = useState<Standard>("X12");
@@ -10,7 +11,9 @@ export default function Home() {
     setElementId("");
     setElementName("");
     setSearch("");
+    setVersion("");
   };
+  const [version, setVersion] = useState("");
   const [elementId, setElementId] = useState("");
   const [elementName, setElementName] = useState("");
   const [search, setSearch] = useState("");
@@ -22,7 +25,7 @@ export default function Home() {
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchResults = useCallback(
-    async (std: Standard, elemId: string, elemName: string, srch: string) => {
+    async (std: Standard, elemId: string, elemName: string, srch: string, ver: string) => {
       if (!elemId.trim() && !elemName.trim() && !srch.trim()) {
         setResults([]);
         setTotalMatches(0);
@@ -40,6 +43,7 @@ export default function Home() {
       if (elemId.trim()) params.set("elementId", elemId.trim());
       if (elemName.trim()) params.set("elementName", elemName.trim());
       if (srch.trim()) params.set("search", srch.trim());
+      if (ver.trim()) params.set("version", ver.trim());
 
       try {
         const res = await fetch(`/api/codelist?${params.toString()}`);
@@ -68,12 +72,12 @@ export default function Home() {
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      fetchResults(standard, elementId, elementName, search);
+      fetchResults(standard, elementId, elementName, search, version);
     }, 300);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [standard, elementId, elementName, search, fetchResults]);
+  }, [standard, elementId, elementName, search, version, fetchResults]);
 
   const totalEntries = results.reduce((sum, r) => sum + r.entries.length, 0);
 
@@ -158,6 +162,24 @@ export default function Home() {
                 className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors"
               />
             </div>
+          </div>
+
+          {/* Version Filter */}
+          <div className="mt-4">
+            <label className="mb-1 block text-xs font-medium text-slate-700">
+              EDI Version{" "}
+              <span className="font-normal text-slate-400">(optional)</span>
+            </label>
+            <select
+              value={version}
+              onChange={(e) => setVersion(e.target.value)}
+              className="w-full max-w-xs rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors"
+            >
+              <option value="">All versions</option>
+              {getVersionKeys(standard).map((v) => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+            </select>
           </div>
         </div>
 
