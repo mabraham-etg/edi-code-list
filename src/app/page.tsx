@@ -4,7 +4,13 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import type { Standard, CodeListResult } from "@/lib/types";
 
 export default function Home() {
-  const [standard, setStandard] = useState<Standard>("X12");
+  const [standard, setStandardState] = useState<Standard>("X12");
+  const setStandard = (std: Standard) => {
+    setStandardState(std);
+    setElementId("");
+    setElementName("");
+    setSearch("");
+  };
   const [elementId, setElementId] = useState("");
   const [elementName, setElementName] = useState("");
   const [search, setSearch] = useState("");

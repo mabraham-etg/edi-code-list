@@ -154,6 +154,11 @@ function setStandard(std) {
   const btnEdifact = document.getElementById("btn-edifact");
   const inpElemId = document.getElementById("inp-elemId");
   const inpElemName = document.getElementById("inp-elemName");
+  const inpSearch = document.getElementById("inp-search");
+
+  inpElemId.value = "";
+  inpElemName.value = "";
+  inpSearch.value = "";
 
   if (std === "X12") {
     btnX12.className = "toggle-btn active-x12";
