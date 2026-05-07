@@ -205,7 +205,7 @@ function setStandard(std) {
     btnX12.className = "toggle-btn inactive";
     btnEdifact.className = "toggle-btn active-edifact";
     inpElemId.placeholder = "e.g. 0065, 1001";
-    inpElemName.placeholder = "e.g. UNH0201, Message Type";
+    inpElemName.placeholder = "e.g. DTM0101";
   }
   doSearch();
 }
