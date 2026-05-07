@@ -231,7 +231,8 @@ export default function Home() {
                       >
                         {result.elementId}
                       </span>
-                      <span className="text-sm font-medium text-slate-900">
+                      <span className="text-xs text-slate-400" aria-hidden="true">&middot;</span>
+                      <span className="text-sm font-semibold text-slate-900">
                         {result.elementName}
                       </span>
                       <span className="ml-auto text-xs text-slate-600">
