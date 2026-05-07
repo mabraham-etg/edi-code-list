@@ -18,8 +18,9 @@ main { max-width: 64rem; margin: 0 auto; padding: 2rem 1rem; }
 .toggle-btn.active-edifact { background: #059669; color: #fff; box-shadow: 0 4px 6px -1px rgba(5,150,105,0.25); }
 .toggle-btn.inactive { background: #f1f5f9; color: #475569; }
 .toggle-btn.inactive:hover { background: #e2e8f0; }
-.inputs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
-@media (max-width: 640px) { .inputs { grid-template-columns: 1fr; } }
+.inputs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+@media (max-width: 768px) { .inputs { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 480px) { .inputs { grid-template-columns: 1fr; } }
 .input-group label { display: block; margin-bottom: 0.25rem; font-size: 0.75rem; font-weight: 500; color: #334155; }
 .input-group input { width: 100%; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 0.5rem; padding: 0.625rem 0.75rem; font-size: 0.875rem; color: #0f172a; transition: border-color 0.15s, box-shadow 0.15s; outline: none; }
 .input-group input::placeholder { color: #94a3b8; }
@@ -84,16 +85,14 @@ td:last-child { color: #1e293b; }
         <input id="inp-elemName" type="text" placeholder="e.g. N101, Entity Identifier" oninput="onInput()">
       </div>
       <div class="input-group">
-        <label>Search in Results</label>
-        <input id="inp-search" type="text" placeholder="Filter code or description..." oninput="onInput()">
-      </div>
-    </div>
-    <div class="version-row">
-      <div class="input-group version-select-wrap">
         <label>EDI Version <span class="optional-label">optional</span></label>
         <select id="inp-version" onchange="onInput()">
           <option value="">All versions</option>
         </select>
+      </div>
+      <div class="input-group">
+        <label>Search in Results</label>
+        <input id="inp-search" type="text" placeholder="Filter code or description..." oninput="onInput()">
       </div>
     </div>
   </div>
@@ -141,6 +140,7 @@ function setStandard(std) {
   selVersion.innerHTML = '<option value="">All versions</option>' +
     versions.map(function(v) { return '<option value="' + v + '">' + v + '</option>'; }).join('');
 
+  if (std === "X12") {
     btnX12.className = "toggle-btn active-x12";
     btnEdifact.className = "toggle-btn inactive";
     inpElemId.placeholder = "e.g. 98, 66";
