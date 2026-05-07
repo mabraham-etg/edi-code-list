@@ -27,17 +27,6 @@ function buildElementNameMap(data) {
   return map;
 }
 
-function buildVersionMap(data) {
-  const map = {};
-  for (const [key, value] of Object.entries(data)) {
-    if (key === "metadata") continue;
-    if (value && typeof value === "object" && value.elements) {
-      map[key] = Object.keys(value.elements);
-    }
-  }
-  return map;
-}
-
 // Load and pre-process data
 console.log("Loading data files...");
 const x12Codes = loadJson("x12_code_descriptions.json").codes;
@@ -46,8 +35,6 @@ const x12DescData = loadJson("x12_descriptions.json");
 const edifactDescData = loadJson("edifact_descriptions.json");
 const x12ElementNames = buildElementNameMap(x12DescData);
 const edifactElementNames = buildElementNameMap(edifactDescData);
-const x12VersionMap = buildVersionMap(x12DescData);
-const edifactVersionMap = buildVersionMap(edifactDescData);
 const x12SegmentMap = loadJson("x12_segment_map.json");
 const edifactSegmentMap = loadJson("edifact_segment_map.json");
 
@@ -74,9 +61,8 @@ main { max-width: 64rem; margin: 0 auto; padding: 2rem 1rem; }
 .toggle-btn.active-edifact { background: #059669; color: #fff; box-shadow: 0 4px 6px -1px rgba(5,150,105,0.25); }
 .toggle-btn.inactive { background: #f1f5f9; color: #475569; }
 .toggle-btn.inactive:hover { background: #e2e8f0; }
-.inputs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
-@media (max-width: 768px) { .inputs { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 480px) { .inputs { grid-template-columns: 1fr; } }
+.inputs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+@media (max-width: 640px) { .inputs { grid-template-columns: 1fr; } }
 .input-group label { display: block; margin-bottom: 0.25rem; font-size: 0.75rem; font-weight: 500; color: #334155; }
 .input-group input { width: 100%; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 0.5rem; padding: 0.625rem 0.75rem; font-size: 0.875rem; color: #0f172a; transition: border-color 0.15s, box-shadow 0.15s; outline: none; }
 .input-group input::placeholder { color: #94a3b8; }
@@ -113,11 +99,6 @@ td:last-child { color: #1e293b; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .spinner span { margin-left: 0.75rem; font-size: 0.875rem; color: #334155; }
 .no-codes { padding: 1rem 1.25rem; text-align: center; font-size: 0.75rem; color: #94a3b8; }
-.version-row { margin-top: 1rem; }
-.version-select-wrap { max-width: 20rem; }
-.optional-label { font-weight: 400; color: #94a3b8; margin-left: 0.25rem; font-size: 0.7rem; }
-.input-group select { width: 100%; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 0.5rem; padding: 0.625rem 0.75rem; font-size: 0.875rem; color: #0f172a; transition: border-color 0.15s, box-shadow 0.15s; outline: none; cursor: pointer; appearance: auto; }
-.input-group select:focus { border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(191,219,254,0.5); }
 </style>
 </head>
 <body>
@@ -141,12 +122,6 @@ td:last-child { color: #1e293b; }
         <input id="inp-elemName" type="text" placeholder="e.g. N101, Entity Identifier" oninput="onInput()">
       </div>
       <div class="input-group">
-        <label>EDI Version <span class="optional-label">optional</span></label>
-        <select id="inp-version" onchange="onInput()">
-          <option value="">All versions</option>
-        </select>
-      </div>
-      <div class="input-group">
         <label>Search in Results</label>
         <input id="inp-search" type="text" placeholder="Filter code or description..." oninput="onInput()">
       </div>
@@ -161,14 +136,12 @@ const DATA = {
   X12: {
     codes: ${JSON.stringify(x12Codes)},
     names: ${JSON.stringify(x12ElementNames)},
-    segMap: ${JSON.stringify(x12SegmentMap)},
-    versions: ${JSON.stringify(x12VersionMap)}
+    segMap: ${JSON.stringify(x12SegmentMap)}
   },
   EDIFACT: {
     codes: ${JSON.stringify(edifactCodes)},
     names: ${JSON.stringify(edifactElementNames)},
-    segMap: ${JSON.stringify(edifactSegmentMap)},
-    versions: ${JSON.stringify(edifactVersionMap)}
+    segMap: ${JSON.stringify(edifactSegmentMap)}
   }
 };
 
@@ -188,13 +161,6 @@ function setStandard(std) {
   inpElemId.value = "";
   inpElemName.value = "";
   inpSearch.value = "";
-
-  // Populate version dropdown for the selected standard
-  const selVersion = document.getElementById("inp-version");
-  selVersion.value = "";
-  const versions = Object.keys(DATA[std].versions);
-  selVersion.innerHTML = '<option value="">All versions</option>' +
-    versions.map(function(v) { return '<option value="' + v + '">' + v + '</option>'; }).join('');
 
   if (std === "X12") {
     btnX12.className = "toggle-btn active-x12";
@@ -237,11 +203,7 @@ function doSearch() {
   const codeMap = d.codes;
   const elementNames = d.names;
   const segmentMap = d.segMap;
-  const versionVal = document.getElementById("inp-version").value;
-  const versionIds = versionVal ? new Set(d.versions[versionVal] || []) : null;
-  const allIds = versionIds
-    ? Object.keys(codeMap).filter(function(id) { return versionIds.has(id); })
-    : Object.keys(codeMap);
+  const allIds = Object.keys(codeMap);
 
   // Resolve segment reference
   let resolvedFromName = null;
@@ -365,14 +327,8 @@ function noResultsState() {
     '</div>';
 }
 
-// Show initial state on load and populate version dropdown
+// Show initial state on load
 document.getElementById("results").innerHTML = initialState();
-(function() {
-  const sel = document.getElementById("inp-version");
-  const versions = Object.keys(DATA["X12"].versions);
-  sel.innerHTML = '<option value="">All versions</option>' +
-    versions.map(function(v) { return '<option value="' + v + '">' + v + '</option>'; }).join('');
-})();
 </script>
 </body>
 </html>`;

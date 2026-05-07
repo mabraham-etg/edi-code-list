@@ -7,7 +7,6 @@ export type CodeListQuery = {
   elementId?: string;
   elementName?: string;
   search?: string;
-  version?: string;
 };
 
 export type CodeListResult = {
