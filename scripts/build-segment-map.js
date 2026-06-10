@@ -68,7 +68,7 @@ function buildSegmentMap(segDefs, comsDefs, isX12) {
       const elemOrComp = elements[i];
       const posStr = String(i + 1).padStart(2, "0");
 
-      if (!isX12 && isComposite(elemOrComp)) {
+      if (isComposite(elemOrComp)) {
         // It's a composite - resolve its children
         const compDef = comsDefs[elemOrComp];
         if (compDef) {
