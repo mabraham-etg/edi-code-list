@@ -38,6 +38,22 @@ const edifactElementNames = buildElementNameMap(edifactDescData);
 const x12SegmentMap = loadJson("x12_segment_map.json");
 const edifactSegmentMap = loadJson("edifact_segment_map.json");
 
+// Build per-version element sets
+function buildVersionSets(descData) {
+  const sets = {};
+  for (const [ver, vdata] of Object.entries(descData)) {
+    if (ver === "metadata") continue;
+    if (vdata && vdata.elements) {
+      sets[ver] = Object.keys(vdata.elements);
+    }
+  }
+  return sets;
+}
+const x12VersionSets = buildVersionSets(x12DescData);
+const edifactVersionSets = buildVersionSets(edifactDescData);
+const x12Versions = Object.keys(x12VersionSets).sort();
+const edifactVersions = Object.keys(edifactVersionSets).sort();
+
 console.log(`X12: ${Object.keys(x12Codes).length} elements, ${Object.keys(x12ElementNames).length} names`);
 console.log(`EDIFACT: ${Object.keys(edifactCodes).length} elements, ${Object.keys(edifactElementNames).length} names`);
 
@@ -61,8 +77,9 @@ main { max-width: 64rem; margin: 0 auto; padding: 2rem 1rem; }
 .toggle-btn.active-edifact { background: #059669; color: #fff; box-shadow: 0 4px 6px -1px rgba(5,150,105,0.25); }
 .toggle-btn.inactive { background: #f1f5f9; color: #475569; }
 .toggle-btn.inactive:hover { background: #e2e8f0; }
-.inputs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
-@media (max-width: 640px) { .inputs { grid-template-columns: 1fr; } }
+.inputs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+@media (max-width: 768px) { .inputs { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 480px) { .inputs { grid-template-columns: 1fr; } }
 .input-group label { display: block; margin-bottom: 0.25rem; font-size: 0.75rem; font-weight: 500; color: #334155; }
 .input-group input { width: 100%; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 0.5rem; padding: 0.625rem 0.75rem; font-size: 0.875rem; color: #0f172a; transition: border-color 0.15s, box-shadow 0.15s; outline: none; }
 .input-group input::placeholder { color: #94a3b8; }
@@ -126,6 +143,12 @@ td:last-child { color: #1e293b; }
         <label>Search in Results</label>
         <input id="inp-search" type="text" placeholder="Filter code or description..." oninput="onInput()">
       </div>
+      <div class="input-group">
+        <label>Version</label>
+        <select id="inp-version" onchange="onInput()">
+          <option value="">All versions</option>
+        </select>
+      </div>
     </div>
   </div>
   <div id="results" class="results"></div>
@@ -137,13 +160,19 @@ const DATA = {
   X12: {
     codes: ${JSON.stringify(x12Codes)},
     names: ${JSON.stringify(x12ElementNames)},
-    segMap: ${JSON.stringify(x12SegmentMap)}
+    segMap: ${JSON.stringify(x12SegmentMap)},
+    versionSets: ${JSON.stringify(x12VersionSets)}
   },
   EDIFACT: {
     codes: ${JSON.stringify(edifactCodes)},
     names: ${JSON.stringify(edifactElementNames)},
-    segMap: ${JSON.stringify(edifactSegmentMap)}
+    segMap: ${JSON.stringify(edifactSegmentMap)},
+    versionSets: ${JSON.stringify(edifactVersionSets)}
   }
+};
+const VERSIONS = {
+  X12: ${JSON.stringify(x12Versions)},
+  EDIFACT: ${JSON.stringify(edifactVersions)}
 };
 
 // ---- State ----
@@ -158,10 +187,21 @@ function setStandard(std) {
   const inpElemId = document.getElementById("inp-elemId");
   const inpElemName = document.getElementById("inp-elemName");
   const inpSearch = document.getElementById("inp-search");
+  const inpVersion = document.getElementById("inp-version");
 
   inpElemId.value = "";
   inpElemName.value = "";
   inpSearch.value = "";
+  inpVersion.value = "";
+
+  // Populate version dropdown
+  const versions = VERSIONS[std];
+  inpVersion.innerHTML = '<option value="">All versions</option>';
+  for (const v of versions) {
+    const opt = document.createElement("option");
+    opt.value = v; opt.textContent = v;
+    inpVersion.appendChild(opt);
+  }
 
   if (std === "X12") {
     btnX12.className = "toggle-btn active-x12";
@@ -193,6 +233,7 @@ function doSearch() {
   const elemIdVal = document.getElementById("inp-elemId").value.trim();
   const elemNameVal = document.getElementById("inp-elemName").value.trim();
   const searchVal = document.getElementById("inp-search").value.trim().toLowerCase();
+  const versionVal = document.getElementById("inp-version").value.trim();
   const container = document.getElementById("results");
 
   if (!elemIdVal && !elemNameVal && !searchVal) {
@@ -239,6 +280,15 @@ function doSearch() {
     }
   } else {
     candidateIds = allIds;
+  }
+
+  // Apply version filter
+  if (versionVal) {
+    const vset = d.versionSets[versionVal];
+    if (vset) {
+      const vsetObj = new Set(vset);
+      candidateIds = candidateIds.filter(function(id) { return vsetObj.has(id); });
+    }
   }
 
   // Build results
@@ -330,7 +380,15 @@ function noResultsState() {
 }
 
 // Show initial state on load
-document.getElementById("results").innerHTML = initialState();
+(function() {
+  const inpVersion = document.getElementById("inp-version");
+  for (const v of VERSIONS["X12"]) {
+    const opt = document.createElement("option");
+    opt.value = v; opt.textContent = v;
+    inpVersion.appendChild(opt);
+  }
+  document.getElementById("results").innerHTML = initialState();
+})();
 </script>
 </body>
 </html>`;

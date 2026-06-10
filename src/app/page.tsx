@@ -3,6 +3,22 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { Standard, CodeListResult } from "@/lib/types";
 
+const X12_VERSIONS = [
+  "2000","2001","2002","2003","2040",
+  "3010","3020","3030","3040","3050","3060","3070",
+  "4010","4020","4030","4040","4050","4060",
+  "5010","5020","5030","5040","5050",
+  "6010","6020","6030",
+];
+const EDIFACT_VERSIONS = [
+  "D93A","D94A","D94B","D95A","D95B",
+  "D96A","D96B","D97A","D97B","D98A","D98B","D99A","D99B",
+  "D00A","D00B","D01A","D01B","D01C",
+  "D02A","D02B","D03A","D03B","D04A","D04B",
+  "D05A","D05B","D06A","D06B","D07A","D07B",
+  "D08A","D08B","D09B","D10A","D10B","D11A",
+];
+
 export default function Home() {
   const [standard, setStandardState] = useState<Standard>("X12");
   const setStandard = (std: Standard) => {
@@ -10,10 +26,12 @@ export default function Home() {
     setElementId("");
     setElementName("");
     setSearch("");
+    setVersion("");
   };
   const [elementId, setElementId] = useState("");
   const [elementName, setElementName] = useState("");
   const [search, setSearch] = useState("");
+  const [version, setVersion] = useState("");
   const [results, setResults] = useState<CodeListResult[]>([]);
   const [totalMatches, setTotalMatches] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -22,7 +40,7 @@ export default function Home() {
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchResults = useCallback(
-    async (std: Standard, elemId: string, elemName: string, srch: string) => {
+    async (std: Standard, elemId: string, elemName: string, srch: string, ver: string) => {
       if (!elemId.trim() && !elemName.trim() && !srch.trim()) {
         setResults([]);
         setTotalMatches(0);
@@ -40,6 +58,7 @@ export default function Home() {
       if (elemId.trim()) params.set("elementId", elemId.trim());
       if (elemName.trim()) params.set("elementName", elemName.trim());
       if (srch.trim()) params.set("search", srch.trim());
+      if (ver.trim()) params.set("version", ver.trim());
 
       try {
         const res = await fetch(`/api/codelist?${params.toString()}`);
@@ -68,12 +87,12 @@ export default function Home() {
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      fetchResults(standard, elementId, elementName, search);
+      fetchResults(standard, elementId, elementName, search, version);
     }, 300);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [standard, elementId, elementName, search, fetchResults]);
+  }, [standard, elementId, elementName, search, version, fetchResults]);
 
   const totalEntries = results.reduce((sum, r) => sum + r.entries.length, 0);
 
@@ -117,7 +136,7 @@ export default function Home() {
           </div>
 
           {/* Input Fields */}
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-700">
                 Element ID
@@ -157,6 +176,21 @@ export default function Home() {
                 placeholder="Filter code or description..."
                 className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors"
               />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-700">
+                Version
+              </label>
+              <select
+                value={version}
+                onChange={(e) => setVersion(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors"
+              >
+                <option value="">All versions</option>
+                {(standard === "X12" ? X12_VERSIONS : EDIFACT_VERSIONS).map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
             </div>
           </div>
         </div>

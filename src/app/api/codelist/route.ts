@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
   const elementId = searchParams.get("elementId") || undefined;
   const elementName = searchParams.get("elementName") || undefined;
   const search = searchParams.get("search") || undefined;
+  const version = searchParams.get("version") || undefined;
 
   // Require at least one filter to avoid returning the entire dataset
   if (!elementId && !elementName && !search) {
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const results = lookupCodeList({ standard, elementId, elementName, search });
+  const results = lookupCodeList({ standard, elementId, elementName, search, version });
 
   // Limit results to prevent huge payloads
   const limited = results.slice(0, 50);

@@ -6,6 +6,8 @@ type CodeMap = Record<string, Record<string, string>>;
 type ElementNameMap = Record<string, string>;
 type SegmentMap = Record<string, string>;
 
+type VersionSets = Record<string, Set<string>>;
+
 // Lazy-loaded caches
 let x12CodeMap: CodeMap | null = null;
 let edifactCodeMap: CodeMap | null = null;
@@ -13,6 +15,8 @@ let x12ElementNames: ElementNameMap | null = null;
 let edifactElementNames: ElementNameMap | null = null;
 let x12SegmentMap: SegmentMap | null = null;
 let edifactSegmentMap: SegmentMap | null = null;
+let x12VersionSets: VersionSets | null = null;
+let edifactVersionSets: VersionSets | null = null;
 
 const DATA_DIR = path.join(process.cwd(), "src", "data");
 
@@ -97,6 +101,38 @@ function getSegmentMap(standard: Standard): SegmentMap {
   return standard === "X12" ? getX12SegmentMap() : getEdifactSegmentMap();
 }
 
+function buildVersionSets(data: Record<string, unknown>): VersionSets {
+  const sets: VersionSets = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (key === "metadata") continue;
+    const vdata = value as Record<string, unknown>;
+    if (vdata?.elements) {
+      sets[key] = new Set(Object.keys(vdata.elements as Record<string, string>));
+    }
+  }
+  return sets;
+}
+
+function getX12VersionSets(): VersionSets {
+  if (!x12VersionSets) {
+    const data = loadJson("x12_descriptions.json") as Record<string, unknown>;
+    x12VersionSets = buildVersionSets(data);
+  }
+  return x12VersionSets;
+}
+
+function getEdifactVersionSets(): VersionSets {
+  if (!edifactVersionSets) {
+    const data = loadJson("edifact_descriptions.json") as Record<string, unknown>;
+    edifactVersionSets = buildVersionSets(data);
+  }
+  return edifactVersionSets;
+}
+
+function getVersionSets(standard: Standard): VersionSets {
+  return standard === "X12" ? getX12VersionSets() : getEdifactVersionSets();
+}
+
 /** Resolve a segment-position reference (e.g. "UNH0201", "N101") to an element ID */
 function resolveSegmentRef(ref: string, segmentMap: SegmentMap): string | null {
   // Try exact match first (case-insensitive key lookup)
@@ -158,6 +194,15 @@ export function lookupCodeList(q: CodeListQuery): CodeListResult[] {
     }
   } else {
     candidateIds = allIds;
+  }
+
+  // Apply version filter
+  if (q.version) {
+    const versionSets = getVersionSets(q.standard);
+    const versionSet = versionSets[q.version];
+    if (versionSet) {
+      candidateIds = candidateIds.filter((id) => versionSet.has(id));
+    }
   }
 
   // Build results
