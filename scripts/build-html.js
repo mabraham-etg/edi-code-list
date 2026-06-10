@@ -186,8 +186,11 @@ const versionCodesLoading = { X12: false, EDIFACT: false };
 // Resolve path prefix for GitHub Pages vs local file
 const BASE_PATH = (function() {
   const loc = window.location.pathname;
-  const m = loc.match(/^(\/[^/]+\/)/); // e.g. /edi-code-list/
-  return (m && !loc.startsWith('/index.html')) ? m[1] : '/';
+  const parts = loc.split('/').filter(Boolean);
+  // GitHub Pages: pathname is /repo-name/index.html → base is /repo-name/
+  // Local file or root: base is /
+  if (parts.length > 1) return '/' + parts[0] + '/';
+  return './';
 })();
 
 async function ensureVersionCodes(std) {
