@@ -178,6 +178,40 @@ const VERSIONS = {
 // ---- State ----
 let currentStandard = "X12";
 let debounceTimer = null;
+// Cache for lazily-fetched version code lists
+// { "X12": null|object, "EDIFACT": null|object }
+const versionCodesCache = { X12: null, EDIFACT: null };
+const versionCodesLoading = { X12: false, EDIFACT: false };
+
+// Resolve path prefix for GitHub Pages vs local file
+const BASE_PATH = (function() {
+  const loc = window.location.pathname;
+  const m = loc.match(/^(\/[^/]+\/)/); // e.g. /edi-code-list/
+  return (m && !loc.startsWith('/index.html')) ? m[1] : '/';
+})();
+
+async function ensureVersionCodes(std) {
+  if (versionCodesCache[std]) return;
+  if (versionCodesLoading[std]) {
+    // Wait for existing fetch
+    await new Promise(function(resolve) {
+      const check = setInterval(function() {
+        if (!versionCodesLoading[std]) { clearInterval(check); resolve(); }
+      }, 50);
+    });
+    return;
+  }
+  versionCodesLoading[std] = true;
+  try {
+    const filename = std === 'X12' ? 'x12-version-codes.json' : 'edifact-version-codes.json';
+    const res = await fetch(BASE_PATH + filename);
+    if (res.ok) versionCodesCache[std] = await res.json();
+  } catch (e) {
+    console.warn('Could not load version codes:', e);
+  } finally {
+    versionCodesLoading[std] = false;
+  }
+}
 
 // ---- UI Helpers ----
 function setStandard(std) {
@@ -229,7 +263,7 @@ function escapeHtml(s) {
 }
 
 // ---- Search Logic (mirrors codelist-adapter.ts) ----
-function doSearch() {
+async function doSearch() {
   const elemIdVal = document.getElementById("inp-elemId").value.trim();
   const elemNameVal = document.getElementById("inp-elemName").value.trim();
   const searchVal = document.getElementById("inp-search").value.trim().toLowerCase();
@@ -239,6 +273,11 @@ function doSearch() {
   if (!elemIdVal && !elemNameVal && !searchVal) {
     container.innerHTML = initialState();
     return;
+  }
+
+  // Fetch version codes if a version is selected
+  if (versionVal) {
+    await ensureVersionCodes(currentStandard);
   }
 
   const d = DATA[currentStandard];
@@ -297,6 +336,14 @@ function doSearch() {
     const codesObj = codeMap[elemId];
     if (!codesObj) continue;
     let entries = Object.entries(codesObj).map(function(e) { return { code: e[0], description: e[1] }; });
+    // Apply version-specific code filtering
+    if (versionVal && versionCodesCache[currentStandard]) {
+      const versionElemCodes = versionCodesCache[currentStandard][versionVal]?.[elemId];
+      if (versionElemCodes) {
+        const validSet = new Set(versionElemCodes.split(','));
+        entries = entries.filter(function(e) { return validSet.has(e.code); });
+      }
+    }
     if (searchVal) {
       entries = entries.filter(function(e) {
         return e.code.toLowerCase().includes(searchVal) || e.description.toLowerCase().includes(searchVal);

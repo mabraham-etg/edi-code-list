@@ -5,6 +5,8 @@ import path from "path";
 type CodeMap = Record<string, Record<string, string>>;
 type ElementNameMap = Record<string, string>;
 type SegmentMap = Record<string, string>;
+// version → elemId → CSV string of valid codes
+type VersionCodeMap = Record<string, Record<string, string>>;
 
 type VersionSets = Record<string, Set<string>>;
 
@@ -17,6 +19,8 @@ let x12SegmentMap: SegmentMap | null = null;
 let edifactSegmentMap: SegmentMap | null = null;
 let x12VersionSets: VersionSets | null = null;
 let edifactVersionSets: VersionSets | null = null;
+let x12VersionCodeMap: VersionCodeMap | null = null;
+let edifactVersionCodeMap: VersionCodeMap | null = null;
 
 const DATA_DIR = path.join(process.cwd(), "src", "data");
 
@@ -133,6 +137,24 @@ function getVersionSets(standard: Standard): VersionSets {
   return standard === "X12" ? getX12VersionSets() : getEdifactVersionSets();
 }
 
+function getX12VersionCodeMap(): VersionCodeMap {
+  if (!x12VersionCodeMap) {
+    x12VersionCodeMap = loadJson("x12_version_codes.json") as VersionCodeMap;
+  }
+  return x12VersionCodeMap;
+}
+
+function getEdifactVersionCodeMap(): VersionCodeMap {
+  if (!edifactVersionCodeMap) {
+    edifactVersionCodeMap = loadJson("edifact_version_codes.json") as VersionCodeMap;
+  }
+  return edifactVersionCodeMap;
+}
+
+function getVersionCodeMap(standard: Standard): VersionCodeMap {
+  return standard === "X12" ? getX12VersionCodeMap() : getEdifactVersionCodeMap();
+}
+
 /** Resolve a segment-position reference (e.g. "UNH0201", "N101") to an element ID */
 function resolveSegmentRef(ref: string, segmentMap: SegmentMap): string | null {
   // Try exact match first (case-insensitive key lookup)
@@ -213,6 +235,16 @@ export function lookupCodeList(q: CodeListQuery): CodeListResult[] {
     let entries: CodeListEntry[] = Object.entries(codesObj).map(
       ([code, description]) => ({ code, description })
     );
+
+    // Apply version-specific code filtering
+    if (q.version) {
+      const versionCodeMap = getVersionCodeMap(q.standard);
+      const versionElemCodes = versionCodeMap[q.version]?.[elemId];
+      if (versionElemCodes) {
+        const validSet = new Set(versionElemCodes.split(","));
+        entries = entries.filter((e) => validSet.has(e.code));
+      }
+    }
 
     // Apply search filter on code/description
     if (searchFilter) {
